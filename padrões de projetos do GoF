@@ -1,4 +1,4 @@
-1 – Prototype - criação de objetos
+1 – PROTOTYPE - criação de objetos
 Intenção 
 Especificar os tipos de objetos a serem criados usando uma instância-protótipo e criar novos objetos pela cópia desse protótipo.
 Aplicabilidade 
@@ -19,6 +19,8 @@ Implementação
 1.	Usar um gerenciador de protótipos. Quando o número de protótipos num sistema não é fixo (ou seja, eles podem ser criados e destruídos dinamicamente), é importante manter um sistema de registro dos protótipos disponíveis. Os clientes não vão gerenciar os protótipos, mas farão sua armazenagem e recuperação pelo sistema de registro. Um cliente solicitará um protótipo ao sistema de registro antes de cloná-lo. Nós chamamos esse sistema de registro de gerenciador de protótipos. Um gerenciador de protótipos é uma memória associativa que retorna o protótipo correspondente a uma chave fornecida. Ele tem operações para registrar um protótipo com uma chave e para removê-lo do registro. Os clientes podem mudar ou mesmo pesquisar o registro em tempo de execução. Isso permite aos clientes estenderem e fazerem um inventário do sistema sem necessidade de escrever linhas de código. 2. Implementar a operação Clone. A parte mais difícil do padrão Prototype é a implementação correta da operação Clone. Ela é particularmente difícil quando as estruturas de objetos contêm referências circulares. A maioria das linguagens fornece algum suporte para clonagem de objetos. Por exemplo, Smalltalk fornece uma implementação de copy que é herdada por todas as subclasses de Object. C++ fornece um constructor copy. Mas estes recursos não resolvem o problema shallow copy versus deep copy (cópia por referência versus cópia por replicação) [GR83]. Ou seja, clonar objetos significa clonar suas variáveis de instância, ou o clone e o original simplesmente compartilham as variáveis? Uma shallow copy é simples e, na maior parte das vezes, suficiente, e é o que o Smalltalk fornece por omissão. O constructor de cópias por omissão em C++ faz uma cópia membro a membro, o que significa que os apontadores serão compartilhados entre a cópia e o original. Porém, clonar protótipos com estruturas complexas normalmente exige uma cópia por replicação (deep copy), porque o clone e o original devem ser independentes. Portanto, você deve garantir que os componentes do clone são clones dos componentes do protótipo. A clonagem força a decidir o que, se for o caso, será compartilhado. Se os objetos no sistema fornecem operações de Salvar e Carregar, então você pode usá-las para fornecer uma implementação por omissão de Clone simplesmente salvando o objeto e carregando-o de volta imediatamente. A operação Salvar salva o objeto num buffer de memória, e a operação Carregar cria uma cópia por reconstrução do objeto a partir do buffer. 3. Iniciar clones. Enquanto alguns clientes ficam perfeitamente contentes com o clone tal como ele é, outros desejarão iniciar alguns ou todos os seus estados internos com valores de sua escolha. Você geralmente não pode passar esses valores para operação Clone porque o seu número variará entre as classes de protótipo. Alguns protótipos podem necessitar de múltiplos parâmetros de inicialização; outros não necessitarão de nenhum. Passar parâmetros para a operação Clone impede uma interface uniforme de clonagem. Pode ser que suas classes-protótipo já definam operações para (re)estabelecer estados-chave. Caso isso aconteça, os clientes podem usar essas operações imediatamente após a clonagem. Se isso não acontecer, então você pode ter que introduzir uma operação Initialize(ver a seção de Exemplo de Código) que recebe parâmetros de inicialização como argumentos e estabelece o estado interno do clone de acordo. Cuidado com as operações clone que usam replicação (deep copying) – as cópias podem ter que ser deletadas (ou explicitamente, ou dentro de Initialize) antes de você reinicializá-las.
 EXEMPLO DE CÓDIGO
 Definiremos uma subclasse MazePrototypeFactory da classe MazeFactory (página 100). MazePrototypeFactory será iniciada com protótipos dos objetos que criará, de maneira que não tenhamos que criar subclasses somente para mudar as classes de paredes ou salas que ela cria. A MazePrototypeFactory aumenta a interface de Maze Factory com um constructor que aceita os protótipos como argumentos:
+
+
 
 
 Class MazePrototypeFactory : public MazeFactory {
@@ -165,6 +167,8 @@ A “biblioteca de técnicas de interações”, no ModeComposer, armazena prot�
 Padrões relacionados
 Prototype e Abstract Factory (95) são padrões que competem entre si em várias situações, como discutimos no final deste capítulo. Porém, eles também podem ser usados em conjunto. Um Abstract Factory pode armazenar um conjunto de protótipos a partir dos quais podem ser clonados e retornados objetos-produto.
 Projetos que utilizam intensamente os padrões Composite (160) e Decorator (170) também podem se beneficiar do uso do Prototype.  
+
+
 
 2) SINGLETON criação de objetos
 
@@ -322,6 +326,501 @@ Usos conhecidos
 
 Um exemplo do padrão Singleton em Smalltalk-80 [Par90] é o conjunto de mudanças no código efetuado por ChangeSet current. Um exemplo mais sutil é o relacionamento entre classes e suas metaclasses. Uma metaclasse é a classe de uma classe, e cada metaclasse tem uma instância. As metaclasses não têm nomes (exceto indiretamente, através do nome da sua única instância), mas registram e acompanham a sua única instância, e normalmente não criarão outra.
 O toolkit para construção de interfaces de usuário InterViews [LCI+92] usa o padrão Singleton para acessar as únicas instâncias de suas classes Session e WidgetKit, entre outras. Session define o ciclo de eventos disparáveis da aplicação principal, armazena o banco de dados das preferências de estilo do usuário e administra conexões para um ou mais dispositivos físicos de display. WidgetKit é uma Abstract Factory (95) para definir os widgets de estilo de interação. A operação WidgetKit::instance determina a subclasse específica de WidgetKit que é instanciada baseada numa variável de ambiente que Session define. Uma operação similar em Session determina se são suportados displays monocromáticos ou coloridos e configura a instância singleton de Session de acordo.
+3 - FAÇADE - estrutural de objetos
+Intenção 
+Fornecer uma interface unificada para um conjunto de interfaces em um subsistema. Façade define uma interface de nível mais alto que torna o subsistema mais fácil de ser usado.
+Motivação 
+Estruturar um sistema em subsistemas ajuda a reduzir a complexidade. Um objetivo comum de todos os projetos é minimizar a comunicação e as dependências entre subsistemas. Uma maneira de atingir esse objetivo é introduzir um objeto façade (fachada), o qual fornece uma interface única e simplificada para os recursos e facilidades mais gerais de um subsistema.
+ 
+Considere, por exemplo, um ambiente de programação que fornece acesso às aplicações para o seu subsistema compilador. Esse subsistema contém classes, tais como Scanner, Parser, ProgramNode, BytecodeStream e ProgramNodeBuilder, que implementam o compilador. Algumas aplicações especializadas podem precisar acessar essas classes diretamente. Mas a maioria dos clientes de um compilador geralmente não se preocupa com detalhes tais como análise e geração de código; eles apenas querem compilar seu código. Para eles, as interfaces poderosas, porém de baixo nível, do subsistema compilador somente complicam sua tarefa.
+Para fornecer uma interface de nível mais alto que pode isolar os clientes dessas classes, o subsistema compilador também inclui uma classe Compiler. A classe Compiler funciona como uma fachada: oferece aos clientes uma interface única e simples para o subsistema compilador. Junta as classes que implementam a funcionalidade de um compilador, sem ocultá-las completamente. O compilador Façade torna a vida mais fácil para a maioria dos programadores, sem, entretanto, ocultar a funcionalidade de nível mais baixo dos poucos que a necessitam.
+ 
+Aplicabilidade
+Use o padrão Façade quando:
+• você desejar fornecer uma interface simples para um subsistema complexo. Os subsistemas se tornam mais complexos à medida que evoluem. A maioria dos padrões, quando aplicados, resulta em mais e menores classes. Isso torna o subsistema mais reutilizável e mais fácil de customizar, porém, também se torna mais difícil de usar para os clientes que não precisam customizá-lo. Uma fachada pode fornecer, por comportamento-padrão, uma visão simples do sistema, que é boa o suficiente para a maioria dos clientes. Somente os clientes que demandarem maior customização necessitarão olhar além da fachada; • existirem muitas dependências entre clientes e classes de implementação de uma abstração. Ao introduzir uma fachada para desacoplar o subsistema dos clientes e de outros subsistemas, estar-se-á promovendo a independência e portabilidade dos subsistemas. • você desejar estruturar seus subsistemas em camadas. Use uma fachada para definir o ponto de entrada para cada nível de subsistema. Se os subsistemas são independentes, você pode simplificar as dependências entre eles fazendo com que se comuniquem uns com os outros exclusivamente através das suas fachadas.
+ 
+Participantes 
+• Façade (Compiler) – conhece quais as classes do subsistema são responsáveis pelo atendimento de uma solicitação; – delega solicitações de clientes a objetos apropriados do subsistema. • Classes de subsistema (Scanner, Parser, ProgramNode, etc.) – implementam a funcionalidade do subsistema; – encarregam-se do trabalho atribuído a elas pelo objeto Façade; – não têm conhecimento da façade; isto é, não mantêm referências para a mesma.
+Colaborações
+ • Os clientes se comunicam com um subsistema através do envio de solicitações para Façade, que as repassa para o(s) objeto(s) apropriado(s) do subsistema. Embora os objetos do subsistema executem o trabalho real, a façade pode ter de efetuar trabalho próprio para traduzir a sua interface para as interfaces de subsistemas. • Os clientes que usam a façade não acessam os objetos do subsistema diretamente.
+Conseqüências
+O padrão Façade oferece os seguintes benefícios:
+1.	Isola os clientes dos componentes do subsistema, dessa forma reduzindo o número de objetos com que os clientes têm que lidar e tornando o subsistema mais fácil de usar;
+2.	Promove um acoplamento fraco entre o subsistema e seus clientes. Freqüentemente, os componentes num subsistema são fortemente acoplados. O acoplamento fraco permite variar os componentes do subsistema sem afetar os seus clientes.
+As Façades ajudam a estratificar um sistema e as dependências entre objetos. Elas podem eliminar dependências complexas ou circulares. Isso pode ser uma conseqüência importante quando o cliente e o subsistema são implementados independentemente.
+Reduzir as dependências de compilação é um aspecto vital em grandes sistemas de software. Você deseja economizar tempo através da minimização da recompilação, quando as classes do subsistema sofrem transformações. A redução das dependências de compilação com o uso de façades pode limitar a recompilação necessária para uma pequena mudança num subsistema importante. Uma façade também pode simplificar a migração de sistemas para outras plataformas, porque é menos provável que a construção de um subsistema exija construir todos os outros.
+3.	Não impede as aplicações de utilizarem as classes do subsistema caso necessitem fazê-lo. Assim, você pode escolher entre a facilidade de uso e a generalidade.
+Implementação
+Considere os seguintes aspectos quando implementar uma façade:
+1.	Redução do acoplamento cliente-subsistema. O acoplamento entre os clientes e o subsistema pode ser ainda mais reduzido tornando Façade uma classe abstrata com subclasses concretas para diferentes implementações de um subsistema. Então, os clientes podem se comunicar com o subsistema através da interface da classe abstrata Façade. Este acoplamento abstrato evita que os clientes saibam qual a implementação de um subsistema que está sendo usada. Uma alternativa ao uso de subclasses é configurar um objeto Façade com diferentes objetos-subsistema. Para customizar Façade simplesmente substitua um ou mais dos seus objetos-subsistema. 
+2.	Classes de subsistemas: públicas ou privadas? Um subsistema é análogo a uma classe no sentido de que ambos possuem interfaces e de que ambos encapsulam algo – uma classe encapsula estado e operações, enquanto um subsistema encapsula classes. E da mesma forma que é útil pensar na interface pública e na interface privada de uma classe, podemos pensar na interface pública e na interface privada de um subsistema. A interface pública de um subsistema consiste de classes que todos os clientes podem acessar; a interface privada destina-se somente aos encarregados de estender o subsistema. A classe Façade naturalmente é parte da interface pública, porém, não é a única parte. Também outras classes do subsistema são usualmente públicas. Por exemplo, as classes Parser e Scanner no subsistema compilador são parte da interface pública. Tornar privadas as classes do subsistema seria útil, porém, poucas linguagens orientadas a objetos fornecem suporte para isso. Tradicionalmente, tanto C++ como Smalltalk têm tido um espaço global de nomes para classes. Contudo, recentemente o comitê de padronização de C++ acrescentou espaços de nomes à linguagem [Str94], o que lhe permitirá expor somente as classes públicas do subsistema.
+Exemplo de código
+ Vamos imaginar mais de perto como colocar uma fachada num subsistema compilador. O subsistema compilador define uma classe BytecodeStream que implementa um stream de objetos Bytecode. Um objeto Bytecode encapsula um código de bytes, o qual pode especificar instruções de máquina. O subsistema também define uma classe Token para objetos que encapsulam tokens na linguagem de programação. A classe Scanner aceita um stream em caracteres e produz um stream de tokens, um de cada vez.
 
+class Scanner {
+public:
+	Scanner (istream&);
+	virtual Scanner ( );
+
+	virtual Token& Scan ( );
+private:
+	istream _inputStream;
+};
+
+A classe Parser usa um ProgramNodeBuilder para construir uma árvore de análise a partir dos tokens de Scanner.
+class Parser {
+public: 
+	Parser ( ) ;
+	virtual ~Parser ( );
+	virtual void Parse (Scanner&, ProgramNodeBuilder&);
+};
+
+Parser chama ProgramNodeBuilder para construir a árvore de análise incrementalmente. Estas classes interagem de acordo com o padrão Builder (104).
+
+class ProgramNodeBuilder {
+public:
+	ProgramNodeBuilder ( );
+
+	virtual ProgramNode* NewVariable {
+	const char* variableName
+} const;
+
+	virtual ProgramNode* NewAssignment   {
+		ProgramNode* Variable, ProgramNode* expression.
+} const;
+
+	Virtual ProgramNode* NewReturnStatement {
+		ProgramNode* value
+} const;
+
+	Virtual ProgramNode* NewCondition {
+		ProgramNode* condition,
+		ProgramNode* truePart, ProgramNode* falsePart
+} const;
+// ...
+	ProgramNode* GetRootNode ( );
+Private:
+	ProgramNode* _node;
+};
+
+A árvore de análise é composta de instâncias de subclasses de ProgramNode tais como StatementNode, ExpressionNode, e assim por diante. A hierarquia ProgramNode é um exemplo do padrão Composite (160). ProgramNode define uma interface para manipular o nó do programa e seus descendentes, se houver.
+class ProgramNode{
+public:
+	//program node manipulation
+	Virtual void GetSourcePosition (int& line, int& index);
+	// . . .
+
+	// child manipulation
+	virtual void Add (ProgramNode*);
+	virtual void Remove (ProgramNode*);
+	// . . .
+	virtual void Traverse (CodeGenerator&);
+protected:
+	ProgramNode ( ) ;
+};
+
+A operação Traverse aceita um objeto CodeGenerator. As subclasses de ProgramNode usam esse objeto para gerar código de máquina na forma de objetos Bytecode num BytecodeStream. A classe CodeGenerator é um visitor (ver Visitor, 305).      
+class CodeGenerator {
+public:
+	virtual void Visit (StatementNode*);
+	virtual void Visit (ExpressionNode*);
+	// . . .
+protected:
+	CodeGenerator (BytecodeStream&);
+protected:
+	BytecodeStream& _output;
+};
+
+CodeGenerator tem subclasses, como StackMachineCodeGenerator e RISCCodeGenerator, que geram código de máquina para diferentes arquiteturas de hardware. Cada subclasse de ProgramNode implementa Traverse para chamar Traverse nos seus objetos ProgramNode descendentes. Por sua vez, cada descendente faz o mesmo para os seus descendentes, e assim por diante, recursivamente. Por exemplo, ExpressionNode define Traverse como segue:
+
+
+void ExpressionNode : : Traverse (CodeGenerator& cg) {
+	cg.Visit (this);
+	ListIterator<ProgramNode*> i (_children);
+	for (i.First ( ); !i.IsDone( ); i.Next {
+	i.CurrentItem ( ) ->Traverse (cg);
+	}
+}
+
+As classes que discutimos até aqui compõem o subsistema compilador. Agora introduziremos uma classe Compiler, uma façade que junta todas estas peças. Compiler fornece uma interface simples para compilar código-fonte e gerar código de máquina para uma máquina específica.
+
+class compiler {
+public:
+	Compiler ( ):
+	virtual void Compile (istream&, BytecodeStream&);
+};
+
+void compiler : : Compile {
+	istream& input, BytecodeStream& output
+} {
+	Scanner scanner (input);
+	ProgramNodeBuilder builder;
+	Parser parser;
+	Parser.Parse(scanner, builder);
+
+	RISCCodeGenerator generator (output);
+	ProgramNode* parseTree = builder.GetRootNode ( );
+	parseTree-> Traverse (generator);
+}
+
+Essa implementação codifica de maneira rígida o tipo de gerador de código a ser usado, de modo que os programadores não especificam a arquitetura para a qual o código está sendo gerado. Isso pode ser razoável se for sempre a mesma arquitetura para a qual será gerado código. Porém, se esse não for o caso, poderemos querer mudar o constructor de Compiler para aceitar como parâmetro um CodeGenerator. Então, os programas poderão especificar o gerador a ser usado quando eles instanciarem Compiler. A fachada do Compilador pode também parametrizar outros participantes, tais como Scanner e ProgramNodeBuilder, o que acrescenta flexibilidade, mas também se desvia da missão do padrão Façade, que é simplificar a interface para os casos comuns. 
+
+Padrões relacionados
+ Abstract Factory (95) pode ser usado com Façade para fornecer uma interface para criação de objetos do subsistema de forma independente do subsistema. Uma Abstract Factory pode ser usada como uma alternativa a Façade para ocultar classes específicas de plataformas. Mediator (257) é semelhante a Façade no sentido em que ele abstrai a funcionalidade de classes existentes. Contudo, a finalidade de Mediator é abstrair comunicações arbitrárias entre objetos-colegas, freqüentemente centralizando funcionalidades que não pertencem a nenhum deles. Os colegas do Mediator estão cientes do mesmo e se comunicam com o Mediator em vez de se comunicarem uns com os outros diretamente. Por contraste, uma fachada meramente abstrai uma interface para objetos subsistemas para torná-los mais fáceis de serem utilizados; ela não define novas funcionalidades e as classes do subsistema não têm conhecimento dela. Normalmente, somente um objeto Façade é necessário. Desta forma, objetos Façade são freqüentemente Singletons (130).      
+	4 - PROXY estrutural de objetos
+
+Intenção
+ Fornece um substituto (surrogate) ou marcador da localização de outro objeto para controlar o acesso a esse objeto.
+Também conhecido como
+Surrogate
+Motivação
+Uma razão para controlar o acesso a um objeto é adiar o custo integral de sua criação e inicialização até o momento em que realmente necessitamos usá-lo. Considere um editor de documentos que pode embutir objetos gráficos num documento. Alguns objetos gráficos, tais como grandes imagens “rasterizadas”, podem ser muito caros para serem criados. A abertura de documentos deveria ser rápida, assim, deveríamos evitar a criação, de uma só vez, de todos os objetos caros quando o documento é aberto. De qualquer forma, isso não é necessário porque nem todos esses objetos estarão visíveis no documento ao mesmo tempo.
+O proxy de imagem cria a imagem real somente quando o editor de documentos solicita ao mesmo exibir a si próprio invocando sua operação Draw. O proxy repassa as solicitações subseqüentes diretamente para a imagem. Portanto, ele deve manter uma referência para a imagem após criá-la. Vamos assumir que as imagens são armazenadas em arquivos separados. Neste caso, podemos usar o nome do arquivo como referência para o objeto real. O proxy também armazena sua extensão, ou seja, sua largura e altura. A extensão permite ao proxy esconder as solicitações sobre o seu tamanho, oriundas do formatador, sem ter que efetivamente instanciar a imagem.
+Aplicabilidade
+O padrão Proxy é aplicável sempre que há necessidade de uma referência mais versátil, ou sofisticada, do que um simples apontador para um objeto. Aqui apresentamos diversas situações comuns nas quais o padrão Proxy é aplicável:
+1.	Um remote proxy fornece um representante local para um objeto num espaço de endereçamento diferente. NEXTSTEP[Add94] usa a classe NXProxy para esta finalidade. Coplien [Cop92] chama este tipo de proxy de um “embaixador” (ambassador).
+2.	Um virtual proxy cria objetos caros sob demanda. O ImageProxy descrito na seção Motivação é um exemplo de um proxy deste tipo.
+3.	Um protection proxy controla o acesso ao objeto original. Os proxies de proteção são úteis quando os objetos devem ter diferentes direitos de acesso. Por exemplo, KernelProxies, no sistema operacional Choices [CIRM93], fornece um acesso protegido aos objetos do sistema operacional.
+4.	Um smart reference é um substituto para um simples pointer que executa ações adicionais quando um objeto é acessado. Usos típicos incluem: • contar o número de referências para o objeto real, de modo que o mesmo possa ser liberado automaticamente quando não houver mais referências (também chamadas de smart pointers [Ede92]); • carregar um objeto persistente para a memória quando ele for referenciado pela primeira vez; • verificar se o objeto real está bloqueado antes de ser acessado, para assegurar que nenhum outro objeto possa mudá-lo.
+Implementação
+O padrão Proxy pode explorar as seguintes características de linguagem: 1. Sobrecarregar o operador de acesso a membros em C++. C++ suporta a sobrecarga (overloading) de operator–>, o operador de acesso a membros. A sobrecarga desse operador permite a execução um trabalho adicional sempre que um objeto é de referenciado. Isso pode ser útil para implementar alguns tipos de proxy; o proxy se comporta exatamente como um apontador. O exemplo seguinte ilustra o uso dessa técnica para implementar um virtual proxy chamado ImagePtr.
+Class Image;
+Extern Image* LoadAnImageFile (const char*);
+// external function
+
+Class ImagePtr {
+Public:
+	ImagePtr (const char* imageFile);
+	Virtual ImagePtr ( );
+  	Virtual image* operator-> ( );
+	Virtual image& operator* ( );
+Private:
+	Image* LoadImage ( );
+Private:
+	Image* _image;
+Const char* _imageFile;
+};
+ImagePtr: : ImagePtr (const char* theImageFile) {
+	_imageFile = theImageFile;
+	_image = 0;
+}
+Image* ImagePtr: : LoadImage ( ) {
+	If (_image == 0) {
+	_image = LoadAnImageFile (_imageFile);
+}
+Return _image;
+}
+Os operadores – > e * usam LoadImage para retornar _image para os clientes (fazendo a carga, se necessário).
+Image* ImagePtr: : operator-> ( ) {
+Return LoadImage ( );
+}
+Image& ImagePtr : : operator* ( ) {
+Return *LoadImage ( );
+}
+
+Essa abordagem permite invocar operações de Image por meio de objetos ImagePtr sem ter o trabalho de tornar as operações parte da interface de ImagePtr:
+ImagePtr image = ImagePtr (*anImageFileName*);
+Image->Draw (Point (50,100));
+//(image.operator-> ( ) -> Draw(Point(50,100))
+
+Exemplo de código 
+O código seguinte implementa dois tipos de proxy: o proxy virtual descrito na seção Motivação e um proxy implementado com doesNotUnderstand .
+1.	Um proxy virtual. A classe Graphic define a interface para objetos gráficos:
+Clas Graphic {
+Public:
+Virtual Graphic ( );
+
+Virtual void Draw (const Point& at) = 0;
+Virtual void HandleMouse (Event& event) = 0;
+
+Virtual const Point& GetExtent ( ) = 0
+Virtual void Save (ostream& to) = 0;
+Protected:
+Graphic ( );
+};
+
+A classe Image implementa a interface de Graphic para exibir arquivos de imagens. Image redefine HandleMouse para permitir aos usuários redimensionar interativamente a imagem.
+Class Image : public Graphic {
+Public:
+Image (const char* file); //carrega a imagem do arquivo
+Virtual Image ( );
+Virtual void Draw (const Point& at);
+Virtual void HandleMouse (Event& event);
+
+Virtual const Point& GetExtent ( );
+
+Virtual void Load (istream& from);
+Virtual void Save (ostream& to);
+Private:
+// . . .
+};
+
+O ImageProxy tem a mesma interface que Image:
+Class ImageProxy : public Graphic {
+Public:
+ImageProxy (const char* imageFile);
+Virtual ImageProxy ( );
+
+Virtual void Draw (const Point& at);
+Virtual void HandleMouse (Event& event);
+
+Virtual const Point& GetExtent ( );
+
+Virtual void Load (istream& from);
+Virtual void Save (ostream& to);
+Protected:
+Image* _image;
+Point _extent;
+Char* _fileName;
+};
+
+O constructor salva uma cópia local do nome do arquivo que armazena a imagem, e inicializa _extent e _image:
+ImageProxy : : ImageProxy (const char* fileName) {
+_fileName = strdup (fileName);
+_extent = Point : : zero; // não conhece a extensão da imagem ainda
+_image = 0;
+}
+Image* ImageProxy : : GetImage ( ) {
+If (_image == 0) {
+_image = new Image (_fileName);
+}
+Return _image;
+}
+
+A implementação de GetExtent retorna a extensão armazenada, se possível; caso contrário, a imagem é carregada a partir do arquivo. Draw carrega a imagem e HandleMouse repassa o evento para a imagem real.
+
+Const Point& ImageProxy : : GetExtent ( ) {
+If (_extent == Point : : Zero) {
+_extent = GetImage ( ) -> GetExtent ( );
+}
+Return _extent;
+}
+Void ImageProxy : : Draw (const Point& at) {
+getImage ( ) -> Draw (at);
+}
+Void ImageProxy : : HandleMouse (Event& event) {
+GetImage ( ) -> HandleMouse (event);
+}
+
+A operação Save salva a extensão armazenada da imagem e o nome do arquivo de imagem em um stream. Load recupera esta informação e inicia os membros correspondentes.
+
+Void ImageProxy : : Save (ostream& to) {
+To << _extent << _fileName;
+}
+Void ImageProxy : : Load (istream& from) {
+From >> _extent >> _fileName;
+}
+Finalmente, suponha que temos uma classe TextDocument que pode conter objetos Graphic:
+Class TextDocument (
+Public:
+TextDocument ( );
+Void Insert (Graphic*);
+// . . .
+};
+
+Podemos inserir um ImageProxy no texto de documento desta forma:
+TextDocument* text = new TextDocument;
+// . . . 
+Text -> Insert (new ImageProxy (*anImageFileName));
+
+2.	Proxies que usam doesNotUnderstand. Você pode criar proxies genéricos em Smalltalk através da definição de classes cuja superclasse é nil8 e definindo o método doesNotUnderstand: para tratar mensagens. A seguinte solução assume que o proxy tem um método realSubject que retorna seu objeto real. No caso de ImageProxy, este método verificaria se o objeto Image foi criado, criaria, se necessário, e, finalmente, o retornaria. Ele utiliza perform:withArguments: para executar a mensagem que está sendo interceptada e tratada no objeto real.
+doesNotUnderstand: aMessage
+self realSubject
+perform: aMessage selector
+withArguments: aMessage arguments
+
+O argumento para doesNotUnderstand: é uma instância de Message que representa a mensagem não compreendida pelo proxy. Assim, o proxy responde a todas as mensagens, garantindo que o objeto real existe antes de repassar a mensagem para ele. Uma das vantagens de doesNotUnderstand: é poder executar processamentos arbitrários. Por exemplo, poderíamos produzir um proxy de proteção, especificando um conjunto de mensagens legalMessages para serem aceitas, dando então ao proxy o seguinte método:
+doesNotUnderstand: aMessage
+^ (legalMessages includes: aMessage selector)
+ifTrue: [self real Subject
+perform: aMessage selector
+withArguments: aMessage arguments]
+ifFalse: [self error: ‘Illegal operator’]
+
+Esse método verifica se a mensagem é uma mensagem legal antes de repassála para o objeto real. Se não for uma mensagem legal, então ele enviará error: para o proxy, o que resultará num ciclo infinito de erros, a menos que o proxy defina error:. Conseqüentemente, a definição de error: deveria ser copiada da classe Object juntamente com quaisquer outros métodos que ela (error:) usa.
+
+5 - TEMPLATE METHOD comportamental de classes
+Intenção 
+Definir o esqueleto de um algoritmo em uma operação, postergando alguns passos para as subclasses. Template Method permite que subclasses redefinam certos passos de um algoritmo sem mudar a estrutura do mesmo.
+Motivação
+Considere um framework para aplicações que fornece as classes Application e Document. A classe Application é responsável por abrir documentos existentes armazenados num formato externo, tal como um arquivo. Um objeto Document representa a informação num documento, depois que ela foi lida do arquivo. As aplicações construídas com o framework podem criar subclasses de Application e Document para atender necessidades específicas. Por exemplo, uma aplicação de desenho define as subclasses DrawApplication e DrawDocument; uma aplicação de planilha define as subclasses SpreadsheetApplication e SpreadsheetDocument.
+A classe abstrata Application define o algoritmo para abrir e ler um documento na sua operação OpenDocument:
+Void Application: : OpenDocument (const char* name) {
+If (!CanOpenDocument (name) {
+// não consegue tratar este documento
+Return;
+}
+Document* doc = DoCreateDocument ( );
+If (doc) {
+_docs -> AddDocument (doc);
+AboutToOpenDocument (doc);
+Doc - > Open ( );
+Doc -> DoRead ( );
+}
+}
+
+OpenDocument define cada passo para a abertura de um documento. Ela verifica se o documento pode ser aberto, cria o objeto Document específico para a aplicação, acrescenta-o ao seu conjunto de documentos e lê Document de um arquivo. Chamamos OpenDocument um template method. Um método-template (gabarito, C++ suporta templates) define um algoritmo em termos da operação abstrata que as subclasses redefinem para fornecer um comportamento concreto. As subclasses da aplicação definem os passos do algoritmo que verifica se o documento pode ser aberto (CanOpenDocument) e cria o Document (DoCreateDocument). As classes Document definem a etapa que lê o documento (DoRead). O método template também define uma operação que permite às subclasses de Application saberem quando o documento está para ser aberto (AboutToOpenDocument), no caso de elas terem essa preocupação. Pela definição de alguns dos passos de um algoritmo usando operações abstratas, o método template fixa a sua ordem, mas deixa as subclasses de Application e Document variarem aqueles passos necessários para atender suas necessidades.
+É importante para os métodos-template especificar quais operações são ganchos (podem ser redefinidas) e quais são operações abstratas (devem ser redefinidas). Para reutilizar uma classe abstrata efetivamente, os codificadores de subclasses devem compreender quais as operações são projetadas para redefinição. Uma subclasse pode estender o comportamento de uma operação de uma classemãe pela redefinição da operação e chamando a operação-mãe explicitamente:
+Void DerivedClass : : Operation ( ) {
+ParentClass : : Operation ( );
+// comportamento estendido de DerivedClass
+Infelizmente, é fácil esquecer de chamar a operação herdada. Podemos transformar uma tal operação num método-template para dar à (classe) mãe controle sobre a maneira como as subclasses a estendem. A idéia é chamar uma operação-gancho a partir de um método-template na classe-mãe. Então, as subclasses podem substituir essa operação-gancho:
+Void ParentClass : : Operation ( ) {
+// comportamento da ParentClass
+HookOperation ( );
+}
+Um HookOperation não faz nada em ParentClass:
+Void ParentClass : : HookOperation ( ) { }
+As subclasses substituem HookOperation para estender o seu comportamento:
+Void DerivedClass : : HookOperation ( ) {
+// extensão da classe derivada
+}
+Exemplo de código
+O seguinte exemplo em C++ mostra como uma classe-mãe pode impor e garantir um invariante para suas subclasses. O exemplo é tirado do AppKit do NeXT [Add94]. Considere uma classe View que suporta a ação de desenhar na tela. View garante a invariante que as suas subclasses podem desenhar em uma visão somente após ela se tornar o “foco”, o que requer que um certo estado de desenho seja estabelecido de forma apropriada (por exemplo, cores e fontes tipográficas).
+Podemos usar um método-template Display para estabelecer este estado. View define duas operações concretas, SetFocus e ResetFocus, que estabelecem e fazem a limpeza do estado de desenho, respectivamente. A operação-gancho DoDisplay de View executa o desenho propriamente dito. Display chama SetFocus antes de DoDisplay para iniciar o estado de desenho; Display chama ResetFocus posteriormente para sair do estado de desenho.
+Void View: : Display ( ) {
+SetFocus ( );
+DoDisplay ( );
+ResetFocus ( );
+}
+
+Para manter o invariante, os clientes de View sempre chamam Display e subclasses de View redefinem DoDisplay. DoDisplay não faz nada em View:
+Void View: : DoDisplay ( ) { }
+
+As subclasses a redefinem para acrescentar o seu comportamento de desenho específico:
+Void MyView: : DoDisplay ( ) {
+// finaliza os conteúdos da visão
+}
+
+Usos conhecidos
+Os métodos-template são tão fundamentais que eles podem ser encontrados em quase todas as classes abstratas. Wirfs-Brock e outros [WBWW90,WBJ90] fornecem uma boa visão geral e uma boa discussão de métodos-template.
+
+Padrões relacionados
+ Os Factory Methods (112) são freqüentemente chamados por métodos-template. No exemplo da seção Motivação, o método-fábrica DoCreateDocument é chamado pelo método-template OpenDocument. Strategy (292): Métodos-template usam a herança para variar parte de um algoritmo. Estratégias usam a delegação para variar o algoritmo inteiro.
+
+6 – STATE comportamental de objetos
+ Intenção 
+Permite a um objeto alterar seu comportamento quando o seu estado interno muda. O objeto parecerá ter mudado sua classe.
+Também conhecido como Objects for States
+Motivação
+Considere a classe TCPConnection que representa uma conexão numa rede de comunicações. Um objeto TCPConnection pode estar em diversos estados diferentes: Established (Estabelecida), Listening (Escutando), Closed (Fechada). Quando um objetoTCPConnection recebe solicitações de outros objetos, ele responde de maneira diferente dependendo do seu estado corrente. Por exemplo, o efeito de uma solicitação de Open (Abrir), depende de se a conexão está no seu estado Closed ou no seu estado Established. O padrão State descreve como TCPConnection pode exibir um comportamento diferente em cada estado.
+A idéia chave deste padrão é introduzir uma classe abstrata chamada TCPState para representar os estados da conexão na rede. A classe TCPState declara uma interface comum para todas as classes que representam diferentes estados operacionais. As subclasses de TCPState implementam comportamentos específicos ao estado. Por exemplo, as classes TCPEstablished e TCPClosed implementam comportamento específico aos estados Established e Closed de TCPConnection.
+Aplicabilidade
+Use o padrão State em um dos dois casos seguintes: • o comportamento de um objeto depende do seu estado e ele pode mudar seu comportamento em tempo de execução, dependendo desse estado; • operações têm comandos condicionais grandes, de várias alternativas, que dependem do estado do objeto. Esse estado é normalmente representado por uma ou mais constantes enumeradas. Freqüentemente, várias operações conterão essa mesma estrutura condicional. O padrão State coloca cada ramo do comando adicional em uma classe separada. Isto lhe permite tratar o estado do objeto como um objeto propriamente dito, que pode variar independentemente de outros objetos.
+Implementação
+O padrão State dá origem a diversas questões de implementação:
+1.	Quem define as transições de estado? O padrão State não especifica qual participante define os critérios para transições de estado. Se os critérios são fixos, então podem ser implementados inteiramente no Context. Contudo, é geralmente mais flexível e adequado permitir que as subclasses de State especifiquem elas mesmas o seu estado sucessor e quando efetuar a transição. Isto exige o acréscimo de uma interface para Context que permite aos objetos State definirem explicitamente o estado corrente de Context. A forma de descentralizar a lógica de transição torna mais fácil modificar ou estender a lógica pela definição de novas subclasses State. Uma desvantagem da descentralização é que uma subclasse State terá conhecimento de pelo menos uma outra, o que introduz dependências de implementação entre subclasses.
+2.	Uma alternativa baseada no uso de tabelas. Em C++ Programming Style [Car92], Cargill descreve uma outra maneira de impor estrutura a um código orientado por estados: ele usa tabelas para mapear entradas para transições de estado. Para cada estado, uma tabela mapeia cada entrada possível para um estado sucessor. Com efeito, essa solução converte o código condicional (e, no caso de padrão State, funções virtuais) em uma pesquisa de tabela. A principal vantagem do uso de tabelas é sua regularidade: você pode mudar os critérios de transição através da modificação de dados em vez da modificação do código de programas. Contudo, aqui apresentamos algumas desvantagens:
+• Uma pesquisa de tabela freqüentemente é menos eficiente do que a chamada (virtual) de uma função. • A colocação da lógica de transição num formato uniforme, tabular, torna os critérios de transição menos explícitos e, portanto, mais difíceis de compreender. • É normalmente difícil acrescentar ações para acompanhar as transições de estado. A solução baseada em tabelas captura os estados e suas transições, porém, ela deve ser aumentada para executar computações arbitrárias em cada transição.
+A diferença-chave entre máquinas de estado guiadas por tabelas e o padrão State pode ser resumida desta maneira: o padrão State modela o comportamento específico de estados, enquanto que a abordagem voltada para tabelas se concentra na definição das transições de estado.
+3.	Criando e destruindo objetos State. Duas alternativas comuns de implementação que valem a pena considerar são: (1) criar objetos State apenas quando são necessários e destruí-los logo que se tornem desnecessários e (2) criá-los antecipadamente e nunca destruí-los. A primeira escolha é preferível quando os estados que serão atingidos não são conhecidos em tempo de execução e os contextos mudam de estado com pouca freqüência. Esta solução evita a criação de objetos que não serão usados, o que é importante se os objetos State armazenarem grande quantidade de informação. A segunda solução é melhor quando as mudanças de estado ocorrem rapidamente, sendo que nesse caso você deseja evitar a destruição de estados porque serão necessários novamente em breve. Os custos de instanciação acontecem somente uma vez antes do processo, e não existe nenhum custo de destruição. Entretanto, esta solução pode ser inconveniente porque o Context deve manter referências para todos os estados que possam ser alcançados.
+4.	Usando herança dinâmica. A mudança de comportamento para uma determinada solicitação poderia ser obtida pela mudança da classe do objeto em tempo de execução, porém, isso não é possível na maioria das linguagens de programação orientadas a objetos. As exceções incluem Self [US87] e outras linguagens baseadas em delegação que oferecem tal mecanismo e, portanto, suportam diretamente o padrão State. Objetos em Self podem delegar operações para outros objetos para obter uma forma de herança dinâmica. A mudança do alvo da delegação, em tempo de execução, efetivamente muda a estrutura de herança. Esse mecanismo permite aos objetos mudarem o seu comportamento e corresponde a mudar as suas classes.
+Exemplo de código
+O exemplo a seguir fornece o código C++ para o exemplo de conexões TCP descrito na seção Motivação. Este exemplo é uma versão simplificada do protocolo TCP; ele não descreve o protocolo completo ou todos os estados das conexões TCP8 . Primeiramente, definiremos a classe TCPConnection, a qual fornece uma interface para transmissão de dados e trata solicitações para mudanças de estado.
+Class TCPOctetStream;
+Class TCPState;
+Class TCPConnection {
+Public:
+TCPConnection ( );
+Void ActiveOpen ( );
+Void PassiveOpen ( );
+Void Close ( );
+Void Send ( );
+Void Acknowledge ( );
+Void Synchronize ( );
+Void ProcessOctet (TCPOStream*);
+Private:
+Friend class TCPState*);
+};
+
+TCPConnection mantém uma instância da classe TCPState na variável membro _state. A classe TCPState duplica a interface de mudança de estados de TCPConnection. Cada operação TCPState recebe uma instância de TCPConnection como um parâmetro, permitindo a TCPState acessar dados de TCPConnection e mudar o estado da conexão.
+Class TCPState {
+Public:
+Virtual void Transmit (TCPConnection*, TCPOctetStream*);
+Virtual void ActiveOpen (TCPConnection*);
+Virtual void PassiveOpen (TCPConnection*);
+Virtual void Clse (TCPConnection*);
+Virtual void Synchronize (TCPConnection*);
+Virtual void Acknowledge (TCPConnection*);
+Virtual void Send (TCP Connection*);
+Protected:
+Void ChangeState (TCPConnection*, TCPState*);
+};
+TCPConnection delega todas as solicitações específicas de estado para sua instância _statede TCPState. O TCPConnection também fornece uma operação para mudar essa variável para um novo TCPState. O constructor de TCPConnection inicia o objeto no estado TCPClosed (definido mais tarde).
+TCPConnection : : TCPConnection ( ) {
+_State = TCPClosed : : Instance ( );
+}
+Void TCPConnection : : ChangeState (TCPState* s) {
+_state = s;
+}
+Void TCPConnection : : ActiveOpen ( ) {
+_state -> ActiveOpen (this);
+}
+Void TCPConnection : : PassiveOpen ( ) {
+_state -> PassiveOpen (this);
+}
+Void TCPConnection : : Close ( ) {
+_state -> Close (this);
+Void TCPConnection: : Acknowledge ( ) {
+_state -> Acknowledge (this);
+Void TCPConnection : : Synchronize ( ) {
+_state -> Synchronize (this);
+}
+
+TCPState implementa o comportamento-padrão para todas as solicitações delegadas a ela. Ela pode também mudar o estado de uma TCPConnection com a operação ChangeState. TCPState é declarado como um friend de TCPConnection para ter acesso privilegiado a essa operação.
+Void TCPState : : Transmit (TCPConnection*, TCPOctetStream*) { }
+Void TCPState : : ActiveOpen (TCPConnection*) { }
+Void TCPState : : PassiveOpen (TCPConnection*) { }
+Void TCPState : : Close (TCPConnection*) { }
+Void TCPState : : Synchronize (TCPConnection*) { }
+Void TCPState : : ChangeState (TCPConnection* t, TCPState* s) {
+T - > ChangeState (s);
+}
+
+As subclasses de TCPState implementam o comportamento específico de estado. Uma conexão TCP pode estar em muitos estados: Established, Listening, Closed, etc., e existe uma subclasse de TCPState para cada estado. Discutiremos três subclasses em detalhe: TCPEstablished, TCPListen e TCPClosed.
+
+ Class TCPEstablished : public TCPState {
+Public:
+Static TCPState* Instance ( );
+Virtual void Transmit (TCPConnection*, TCPOctetStream*);
+Virtual void Close (TCPConnection*);
+};
+Class TCPListen : public TCPState {
+Public:
+Static TCPState* Instance ( );
+Virtual void Send (TCPConnection*);
+// . . . 
+};
+Class TCPClosed : public TCPState {
+Public:
+Static TCPState* Instance ( );
+Virtual void ActiveOpen (TCPConnection*);
+Virtual void PassiveOpen (TCPConnection*);
+// . . . 
+};
+
+As subclasses de TCPState não mantêm estados locais, de modo que possam ser compartilhadas e apenas uma instância de cada seja requerida. A única instância de cada subclasse TCPState é obtida pela operação estática Instance9 . Cada subclasse TCPState implementa um comportamento específico do estado para cada solicitação válida no estado:
+Void TCPClosed : : ActiveOpen (TCPConnection* t) {
+// envia SYN, recebe SYN, ACK, etc.
+ChangeState (t, TCPEstablished : : Instance( ) );
+}
+Void TCPClosed : : PassiveOpen (TCPConnection* t) {
+ChangeState (t, TCPListen : : Instaance ( ) );
+}
+Void TCPEstablished : : Close (TCPConnection* t) {
+// envia FIN, recebe ACK de FIN
+ChangeState (t, TCPListen : : Instance ( ) );
+}
+Void TCPEstablished : : Transmit {
+TCPConnection* t, TCPOctetStream* o
+} {
+T - > ProcessOctet (o);
+}
+Void TCPListen : : Send (TCPConnection* t) {
+// envia SYN, recebe SYN, ACK, etc.
+changeState (t, TCPEstablished : : Instance ( ) );
+}
+
+Após executar o trabalho específico do estado, essas operações chamam a operação ChangeState para mudar o estado de TCPConnection. O TCPConnection em si não sabe nada sobre o protocolo de conexão TCP; são as subclasses TCPState que definem cada transição de estado e ação em TCP. 
 
 
